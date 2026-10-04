@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { @apply bg-gray-100 text-nuit; }
+
+/* Impression / export PDF : on ne garde que le document */
+@media print {
+  body { background: white; }
+  .no-print { display: none !important; }
+  .impression { box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
+  main { max-width: none !important; padding: 0 !important; }
+  @page { margin: 14mm; }
+}
