@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import Badge from '../components/Badge'
 import EspaceClientAdmin from '../components/EspaceClientAdmin'
+import HistoriquePresences from '../components/HistoriquePresences'
+import SousTraitantSaisie from '../components/SousTraitantSaisie'
+import { affecterSousTraitant, brouillonStVide, verifierBrouillonSt, type BrouillonSt } from '../lib/creation'
 import Progression from '../components/Progression'
 import { dateFr, fcfa } from '../lib/format'
 import { compresser } from '../lib/image'
@@ -25,8 +28,7 @@ export default function ChantierFiche() {
   const [profils, setProfils] = useState<Profil[]>([])
   const [externes, setExternes] = useState<AffectationSt[]>([])
   const [stDispo, setStDispo] = useState<{ id: string; nom: string; specialite: string | null }[]>([])
-  const [stChoix, setStChoix] = useState('')
-  const [stMission, setStMission] = useState('')
+  const [stBrouillon, setStBrouillon] = useState<BrouillonSt>(brouillonStVide())
   const [photos, setPhotos] = useState<PhotoUrl[]>([])
   const [filtre, setFiltre] = useState<TypePhoto | 'tous'>('tous')
   const [typeEnvoi, setTypeEnvoi] = useState<TypePhoto>('pendant')
@@ -133,10 +135,11 @@ export default function ChantierFiche() {
   }
 
   async function affecterSt() {
-    if (!stChoix) return
-    const { error } = await supabase.from('affectations_st').insert({ chantier_id: id, sous_traitant_id: stChoix, mission: stMission.trim() || null })
-    setMsg(error ? error.message : '')
-    if (!error) { setStChoix(''); setStMission('') }
+    const invalide = verifierBrouillonSt(stBrouillon)
+    if (invalide) return setMsg(invalide)
+    const erreurAffectation = await affecterSousTraitant(id, stBrouillon)
+    setMsg(erreurAffectation ?? '')
+    if (!erreurAffectation) setStBrouillon(brouillonStVide())
     await charger()
   }
 
@@ -365,17 +368,18 @@ export default function ChantierFiche() {
           {!externes.length && <p className="text-sm text-gray-500">Aucun sous-traitant sur ce chantier.</p>}
           {gere && (
             <div className="space-y-2 pt-1">
-              <select className={champ} value={stChoix} onChange={(e) => setStChoix(e.target.value)} aria-label="Sous-traitant à affecter">
-                <option value="">Choisir un sous-traitant…</option>
-                {stDispo.map((s) => <option key={s.id} value={s.id}>{s.nom}{s.specialite ? ` · ${s.specialite}` : ''}</option>)}
-              </select>
-              <input className={champ} value={stMission} onChange={(e) => setStMission(e.target.value)} placeholder="Mission (ex. Carrelage salle de bain)" aria-label="Mission" />
+              <SousTraitantSaisie existants={stDispo} valeur={stBrouillon} onChange={setStBrouillon} />
               <button className={btn} onClick={() => void affecterSt()}>Affecter</button>
-              {!stDispo.length && <p className="text-xs text-gray-500">Ajoutez d'abord vos sous-traitants dans Plus &gt; Sous-traitants.</p>}
             </div>
           )}
         </div>
       )}
+
+      <HistoriquePresences
+        chantierId={id}
+        peutPointer={gere || ch.chef_id === session?.user.id}
+        externes={externes.map((a) => ({ id: a.sous_traitant_id, nom: a.sous_traitants?.nom ?? 'Sous-traitant' }))}
+      />
 
       <div className={`${carte} space-y-3`}>
         <h2 className="font-bold">Photos ({photos.length})</h2>

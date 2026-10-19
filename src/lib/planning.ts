@@ -68,3 +68,11 @@ export function jourCourt(d: string): string {
   const x = new Date(d + 'T00:00:00Z')
   return `${JOURS_COURTS[x.getUTCDay()]} ${d.slice(8)}/${d.slice(5, 7)}`
 }
+
+const JOURS_LONGS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+/** « dimanche 18 octobre 2026 » */
+export function jourLong(d: string): string {
+  const x = new Date(d + 'T00:00:00Z')
+  return `${JOURS_LONGS[x.getUTCDay()]} ${x.getUTCDate()} ${MOIS[x.getUTCMonth()]} ${x.getUTCFullYear()}`
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import { jourLong } from '../lib/planning'
 import { supabase } from '../lib/supabase'
 import { btn, btnSec, carte, champ, etiquette } from '../lib/ui'
 import { peutGerer, type SousTraitant } from '../types'
@@ -22,6 +23,8 @@ export default function SousTraitants() {
   const [notes, setNotes] = useState({ qualite: 3, delais: 3, prix: 3 })
   const [evalChantier, setEvalChantier] = useState(''); const [commentaire, setCommentaire] = useState('')
   const [msg, setMsg] = useState('')
+  const [histoId, setHistoId] = useState<string | null>(null)
+  const [histo, setHisto] = useState<{ id: string; date_presence: string; note: string | null; chantiers: { titre: string } | null }[] | null>(null)
 
   async function charger() {
     const [s, c] = await Promise.all([
@@ -50,6 +53,15 @@ export default function SousTraitants() {
     if (error) return setMsg(error.message)
     setEvalId(null); setCommentaire(''); setEvalChantier(''); setNotes({ qualite: 3, delais: 3, prix: 3 }); setMsg('')
     await charger()
+  }
+
+  async function voirHistorique(sid: string) {
+    if (histoId === sid) { setHistoId(null); return }
+    setHistoId(sid); setHisto(null)
+    const { data, error } = await supabase.from('presences_st').select('id, date_presence, note, chantiers(titre)')
+      .eq('sous_traitant_id', sid).order('date_presence', { ascending: false }).limit(200)
+    if (error) { setMsg(error.message); setHistoId(null); return }
+    setHisto((data ?? []) as unknown as { id: string; date_presence: string; note: string | null; chantiers: { titre: string } | null }[])
   }
 
   async function retirer(s: SousTraitant) {
@@ -109,7 +121,18 @@ export default function SousTraitants() {
           ) : (
             <div className="flex items-center gap-3">
               <button className={btnSec} onClick={() => setEvalId(s.id)}>Évaluer</button>
+              <button className="text-sm underline" onClick={() => void voirHistorique(s.id)}>{histoId === s.id ? 'Masquer l\'historique' : 'Historique'}</button>
               <button className="text-sm text-red-600" onClick={() => void retirer(s)}>Retirer</button>
+            </div>
+          )}
+          {histoId === s.id && (
+            <div className="space-y-1 border-t border-gray-100 pt-2 text-sm">
+              {histo === null && <p className="text-gray-500">Chargement…</p>}
+              {histo?.map((h) => (
+                <p key={h.id}><b>{jourLong(h.date_presence)}</b> · {h.chantiers?.titre ?? 'Chantier'}{h.note && <span className="text-gray-500"> · {h.note}</span>}</p>
+              ))}
+              {histo && !histo.length && <p className="text-gray-500">Aucune présence pointée pour l'instant.</p>}
+              {histo && <p className="text-xs text-gray-500">{histo.length} jour{histo.length > 1 ? 's' : ''} de présence enregistré{histo.length > 1 ? 's' : ''}.</p>}
             </div>
           )}
         </div>
