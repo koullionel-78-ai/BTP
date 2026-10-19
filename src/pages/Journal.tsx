@@ -7,6 +7,7 @@ import type { JournalLigne } from '../types'
 const TABLES: Record<string, string> = {
   devis: 'Devis', factures: 'Factures', paiements: 'Paiements', depenses: 'Dépenses', prestations: 'Prix',
   articles: 'Articles', chantiers: 'Chantiers', profils: 'Équipe', travailleurs: 'Personnel', avances: 'Avances', paies: 'Paies',
+  affectations_st: 'Sous-traitants sur chantier', rendez_vous: 'Rendez-vous de devis',
 }
 const ACTION: Record<JournalLigne['action'], { libelle: string; style: string }> = {
   creation: { libelle: 'Création', style: 'bg-green-100 text-green-700' },

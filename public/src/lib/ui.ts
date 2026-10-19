@@ -1,0 +1,5 @@
+export const champ = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 outline-none focus:border-nuit disabled:bg-gray-100'
+export const btn = 'rounded-lg bg-chantier px-4 py-2.5 font-bold text-nuit disabled:opacity-60'
+export const btnSec = 'rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-semibold'
+export const carte = 'rounded-2xl bg-white p-4 shadow-sm'
+export const etiquette = 'mb-1 block text-sm font-semibold text-gray-600'

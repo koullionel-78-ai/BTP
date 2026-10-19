@@ -24,6 +24,7 @@ export interface Chantier {
   id: string
   client_id: string | null
   chef_id: string | null
+  controleur_id?: string | null
   titre: string
   adresse: string | null
   type_travaux: TypeTravaux
@@ -478,4 +479,38 @@ export interface JournalLigne {
   utilisateur_id: string | null
   changes: Record<string, unknown> | null
   created_at: string
+}
+
+// ---- Phase 8 : planning enrichi ----
+export interface AffectationSt {
+  id: string
+  chantier_id: string
+  sous_traitant_id: string
+  mission: string | null
+  date_debut: string | null
+  date_fin: string | null
+  sous_traitants?: { nom: string; specialite: string | null } | null
+}
+
+export type TypeRdv = 'visite' | 'metre' | 'remise'
+export type StatutRdv = 'prevu' | 'fait' | 'annule'
+
+export const LIBELLE_RDV: Record<TypeRdv, string> = {
+  visite: 'Visite chez le client',
+  metre: 'Métré',
+  remise: 'Remise du devis',
+}
+
+export interface RendezVous {
+  id: string
+  type: TypeRdv
+  date_rdv: string
+  heure: string | null
+  client_id: string
+  devis_id: string | null
+  responsable_id: string | null
+  adresse: string | null
+  notes: string | null
+  statut: StatutRdv
+  clients?: { nom: string; telephone: string | null; adresse: string | null } | null
 }

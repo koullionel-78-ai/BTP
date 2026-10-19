@@ -14,6 +14,7 @@ export interface DocSaisie {
   notes: string | null
   validite_jours: number
   date_echeance: string
+  date_limite_envoi?: string | null
   lignes: Ligne[]
 }
 
@@ -45,6 +46,7 @@ export default function DocumentForm({ type, clients, chantiers, initial, libell
   const [echeance, setEcheance] = useState(
     initial.date_echeance ?? new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10),
   )
+  const [limiteEnvoi, setLimiteEnvoi] = useState(initial.date_limite_envoi ?? '')
   const [lignes, setLignes] = useState<LigneEdit[]>(
     initial.lignes?.length
       ? initial.lignes.map((l) => ({ description: l.description, quantite: String(l.quantite), unite: l.unite, prix: String(l.prix_unitaire) }))
@@ -93,6 +95,7 @@ export default function DocumentForm({ type, clients, chantiers, initial, libell
       notes: notes.trim() || null,
       validite_jours: Math.round(nombre(validite)) || 30,
       date_echeance: echeance,
+      ...(type === 'devis' ? { date_limite_envoi: limiteEnvoi || null } : {}),
       lignes: utiles.map((l) => ({ ...l, description: l.description.trim() })),
     })
     setErreur(err ?? '')
@@ -124,6 +127,9 @@ export default function DocumentForm({ type, clients, chantiers, initial, libell
           <div>
             <label className={etiquette}>Validité (jours)</label>
             <input className={champ} inputMode="numeric" value={validite} onChange={(e) => setValidite(e.target.value)} />
+            <label className={`${etiquette} mt-3`}>Date limite d'envoi au client (facultatif)</label>
+            <input className={champ} type="date" value={limiteEnvoi} onChange={(e) => setLimiteEnvoi(e.target.value)} />
+            <p className="mt-1 text-xs text-gray-500">Le devis apparaît sur le planning à cette date tant qu'il est en brouillon.</p>
           </div>
         ) : (
           <div>

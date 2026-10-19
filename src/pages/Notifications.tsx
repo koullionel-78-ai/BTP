@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ajouterJours, aujourdhui, fcfa } from '../lib/format'
+import { joursAPourvoir, jourCourt, type AffPlan, type AffStPlan, type ChantierPlan } from '../lib/planning'
 import { supabase } from '../lib/supabase'
 import { carte } from '../lib/ui'
 import { peutGerer } from '../types'
@@ -77,6 +78,35 @@ export default function Notifications() {
         if (recents.length) liste.push({ cle: 'choix-repondus', niveau: 'info', titre: `${pl(recents.length, 'réponse')} de client cette semaine`, detail: recents.slice(0, 3).map((x) => x.libelle).join(', '), to: '/chantiers' })
         const p = (prospects ?? []) as unknown[]
         if (p.length) liste.push({ cle: 'prospects', niveau: 'info', titre: `${pl(p.length, 'prospect')} à relancer`, detail: 'Nouveaux depuis plus de 3 jours', to: '/prospects' })
+      }
+      if (gere) {
+        const [plan, affs, affsSt, limites, rdvs] = await Promise.all([
+          sur(() => supabase.from('chantiers').select('id, titre, statut, chef_id, date_debut, date_fin_prevue').in('statut', ['a_planifier', 'en_cours'])),
+          sur(() => supabase.from('affectations').select('chantier_id, utilisateur_id, date_debut, date_fin')),
+          sur(() => supabase.from('affectations_st').select('chantier_id, sous_traitant_id, date_debut, date_fin')),
+          sur(() => supabase.from('devis').select('numero, date_limite_envoi').eq('statut', 'brouillon').not('date_limite_envoi', 'is', null).lte('date_limite_envoi', auj)),
+          sur(() => supabase.from('rendez_vous').select('type, date_rdv, clients(nom)').eq('statut', 'prevu').lte('date_rdv', ajouterJours(auj, 1))),
+        ])
+        const fin7 = ajouterJours(auj, 6)
+        const vides = ((plan ?? []) as ChantierPlan[])
+          .map((c) => ({ c, js: joursAPourvoir(c, auj, fin7, (affs ?? []) as AffPlan[], (affsSt ?? []) as AffStPlan[]) }))
+          .filter((x) => x.js.length > 0)
+          .sort((a, b) => a.js[0].localeCompare(b.js[0]))
+        if (vides.length) {
+          liste.push({
+            cle: 'a-pourvoir', niveau: vides[0].js[0] <= ajouterJours(auj, 2) ? 'urgent' : 'info',
+            titre: `${pl(vides.length, 'chantier')} à pourvoir dans les 7 jours`,
+            detail: vides.slice(0, 3).map((x) => `${x.c.titre} (dès ${jourCourt(x.js[0])})`).join(', ') + (vides.length > 3 ? '…' : ''),
+            to: '/planning',
+          })
+        }
+        const l = (limites ?? []) as { numero: string; date_limite_envoi: string }[]
+        if (l.length) liste.push({ cle: 'devis-a-envoyer', niveau: l.some((x) => x.date_limite_envoi < auj) ? 'urgent' : 'info', titre: `${pl(l.length, 'devis')} à envoyer aujourd'hui ou en retard`, detail: l.slice(0, 4).map((x) => x.numero).join(', '), to: '/devis' })
+        const r = (rdvs ?? []) as unknown as { type: string; date_rdv: string; clients: { nom: string } | null }[]
+        const proches = r.filter((x) => x.date_rdv >= auj)
+        const aClore = r.filter((x) => x.date_rdv < auj)
+        if (proches.length) liste.push({ cle: 'rdv', niveau: 'info', titre: `${pl(proches.length, 'rendez-vous')} de devis aujourd'hui ou demain`, detail: proches.slice(0, 3).map((x) => `${jourCourt(x.date_rdv)} ${x.clients?.nom ?? ''}`).join(', '), to: '/planning' })
+        if (aClore.length) liste.push({ cle: 'rdv-a-clore', niveau: 'info', titre: `${pl(aClore.length, 'rendez-vous')} passé${aClore.length > 1 ? 's' : ''} à clôturer`, to: '/planning' })
       }
       liste.sort((a, b) => Number(b.niveau === 'urgent') - Number(a.niveau === 'urgent'))
       setAlertes(liste)

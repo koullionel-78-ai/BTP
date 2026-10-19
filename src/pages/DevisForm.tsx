@@ -30,14 +30,15 @@ export default function DevisForm() {
       if (!id) {
         return setInitial({ client_id: params.get('client') ?? '', chantier_id: params.get('chantier') ?? null })
       }
-      const [d, l] = await Promise.all([
+      const [d, l, lim] = await Promise.all([
         supabase.from('devis_totaux').select('*').eq('id', id).maybeSingle(),
         supabase.from('lignes_devis').select('*').eq('devis_id', id).order('position'),
+        supabase.from('devis').select('date_limite_envoi').eq('id', id).maybeSingle(),
       ])
       const devis = d.data as Devis | null
       if (!devis) return setInterdit('Devis introuvable.')
       if (devis.statut === 'accepte') return setInterdit('Un devis accepté ne peut plus être modifié.')
-      setInitial({ ...devis, lignes: (l.data ?? []) as Ligne[] })
+      setInitial({ ...devis, date_limite_envoi: (lim.data?.date_limite_envoi as string | null | undefined) ?? null, lignes: (l.data ?? []) as Ligne[] })
     })()
   }, [id])
 

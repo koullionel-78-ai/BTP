@@ -13,10 +13,11 @@ export default function ChantierForm() {
   const nav = useNavigate()
   const [clients, setClients] = useState<Choix[]>([])
   const [chefs, setChefs] = useState<Choix[]>([])
+  const [personnes, setPersonnes] = useState<Choix[]>([])
   const [erreur, setErreur] = useState('')
   const [envoi, setEnvoi] = useState(false)
   const [v, setV] = useState({
-    titre: '', client_id: '', chef_id: '', adresse: '', type_travaux: 'autre',
+    titre: '', client_id: '', chef_id: '', controleur_id: '', adresse: '', type_travaux: 'autre',
     date_debut: '', date_fin_prevue: '', budget_prevu: '0', statut: 'a_planifier', avancement_pct: '0',
   })
 
@@ -24,11 +25,13 @@ export default function ChantierForm() {
     supabase.from('clients').select('id, nom').order('nom').then(({ data }) => setClients(data ?? []))
     supabase.from('profils').select('id, nom').eq('role', 'chef_chantier').eq('actif', true).order('nom')
       .then(({ data }) => setChefs(data ?? []))
+    supabase.from('profils').select('id, nom').eq('actif', true).order('nom')
+      .then(({ data }) => setPersonnes(data ?? []))
     if (id) {
       supabase.from('chantiers').select('*').eq('id', id).maybeSingle().then(({ data }) => {
         if (!data) return
         setV({
-          titre: data.titre, client_id: data.client_id ?? '', chef_id: data.chef_id ?? '', adresse: data.adresse ?? '',
+          titre: data.titre, client_id: data.client_id ?? '', chef_id: data.chef_id ?? '', controleur_id: data.controleur_id ?? '', adresse: data.adresse ?? '',
           type_travaux: data.type_travaux, date_debut: data.date_debut ?? '', date_fin_prevue: data.date_fin_prevue ?? '',
           budget_prevu: String(data.budget_prevu), statut: data.statut, avancement_pct: String(data.avancement_pct),
         })
@@ -49,6 +52,7 @@ export default function ChantierForm() {
       titre: v.titre.trim(),
       client_id: v.client_id || null,
       chef_id: v.chef_id || null,
+      controleur_id: v.controleur_id || null,
       adresse: v.adresse.trim() || null,
       type_travaux: v.type_travaux,
       date_debut: v.date_debut || null,
@@ -83,6 +87,13 @@ export default function ChantierForm() {
           <select className={champ} value={v.chef_id} onChange={maj('chef_id')}>
             <option value="">— Aucun —</option>
             {chefs.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={etiquette}>Contrôleur (suit le chantier, en lecture seule)</label>
+          <select className={champ} value={v.controleur_id} onChange={maj('controleur_id')}>
+            <option value="">— Aucun —</option>
+            {personnes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
         </div>
         <div><label className={etiquette}>Adresse</label><input className={champ} value={v.adresse} onChange={maj('adresse')} /></div>

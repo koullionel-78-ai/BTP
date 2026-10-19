@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase'
 import { btn, btnSec, carte, champ } from '../lib/ui'
 import {
   LIBELLE_PHOTO, LIBELLE_STATUT, LIBELLE_TRAVAUX, peutGerer,
-  type AffectationDatee, type Chantier, type ChantierFinance, type Photo, type Profil, type Rapport, type StatutChantier, type TypePhoto,
+  type AffectationDatee, type AffectationSt, type Chantier, type ChantierFinance, type Photo, type Profil, type Rapport, type StatutChantier, type TypePhoto,
 } from '../types'
 
 const BUCKET = 'photos-chantier'
@@ -23,6 +23,10 @@ export default function ChantierFiche() {
   const [ch, setCh] = useState<Chantier | null>(null)
   const [equipe, setEquipe] = useState<AffectationDatee[]>([])
   const [profils, setProfils] = useState<Profil[]>([])
+  const [externes, setExternes] = useState<AffectationSt[]>([])
+  const [stDispo, setStDispo] = useState<{ id: string; nom: string; specialite: string | null }[]>([])
+  const [stChoix, setStChoix] = useState('')
+  const [stMission, setStMission] = useState('')
   const [photos, setPhotos] = useState<PhotoUrl[]>([])
   const [filtre, setFiltre] = useState<TypePhoto | 'tous'>('tous')
   const [typeEnvoi, setTypeEnvoi] = useState<TypePhoto>('pendant')
@@ -79,6 +83,13 @@ export default function ChantierFiche() {
         ...((fa.data ?? []) as { id: string; numero: string; total_ttc: number }[]).map((d) => ({ id: d.id, numero: d.numero, type: 'facture' as const, total: d.total_ttc })),
       ])
     }
+    // Sous-traitants du chantier (phase 8) : si la table n'existe pas encore, la liste reste vide.
+    const ext = await supabase.from('affectations_st').select('*, sous_traitants(nom, specialite)').eq('chantier_id', id).order('created_at')
+    setExternes(ext.error ? [] : ((ext.data ?? []) as unknown as AffectationSt[]))
+    if (gere) {
+      const st = await supabase.from('sous_traitants').select('id, nom, specialite').eq('actif', true).order('nom')
+      setStDispo((st.data ?? []) as { id: string; nom: string; specialite: string | null }[])
+    }
     setEquipe((a.data ?? []) as AffectationDatee[])
     setProfils((p.data ?? []) as Profil[])
     const liste = (ph.data ?? []) as Photo[]
@@ -119,6 +130,29 @@ export default function ChantierFiche() {
     const { error } = await supabase.from('affectations').update({ [champ]: valeur || null }).eq('id', a.id)
     setMsg(error ? error.message : '')
     if (!error) setEquipe((l) => l.map((x) => (x.id === a.id ? suivant : x)))
+  }
+
+  async function affecterSt() {
+    if (!stChoix) return
+    const { error } = await supabase.from('affectations_st').insert({ chantier_id: id, sous_traitant_id: stChoix, mission: stMission.trim() || null })
+    setMsg(error ? error.message : '')
+    if (!error) { setStChoix(''); setStMission('') }
+    await charger()
+  }
+
+  async function majDatesSt(a: AffectationSt, champ: 'date_debut' | 'date_fin', valeur: string) {
+    const suivant = { ...a, [champ]: valeur || null }
+    if (suivant.date_debut && suivant.date_fin && suivant.date_fin < suivant.date_debut) {
+      return setMsg('La date de fin doit être après la date de début.')
+    }
+    const { error } = await supabase.from('affectations_st').update({ [champ]: valeur || null }).eq('id', a.id)
+    setMsg(error ? error.message : '')
+    if (!error) setExternes((l) => l.map((x) => (x.id === a.id ? suivant : x)))
+  }
+
+  async function retirerSt(affId: string) {
+    await supabase.from('affectations_st').delete().eq('id', affId)
+    await charger()
   }
 
   async function retirer(affId: string) {
@@ -179,6 +213,7 @@ export default function ChantierFiche() {
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <div><dt className="text-gray-500">Adresse</dt><dd>{ch.adresse ?? '—'}</dd></div>
           <div><dt className="text-gray-500">Chef de chantier</dt><dd>{nomDe(ch.chef_id)}</dd></div>
+          <div><dt className="text-gray-500">Contrôleur</dt><dd>{nomDe(ch.controleur_id ?? null)}</dd></div>
           <div><dt className="text-gray-500">Début</dt><dd>{dateFr(ch.date_debut)}</dd></div>
           <div><dt className="text-gray-500">Fin prévue</dt><dd>{dateFr(ch.date_fin_prevue)}</dd></div>
           {gere && <div><dt className="text-gray-500">Budget prévu</dt><dd>{fcfa(ch.budget_prevu)}</dd></div>}
@@ -303,6 +338,44 @@ export default function ChantierFiche() {
           </div>
         )}
       </div>
+
+      {(gere || externes.length > 0) && (
+        <div className={`${carte} space-y-2`}>
+          <h2 className="font-bold">Sous-traitants affectés ({externes.length})</h2>
+          {externes.map((a) => (
+            <div key={a.id} className="space-y-1 border-t border-gray-100 pt-2">
+              <div className="flex items-center justify-between gap-2">
+                <span>
+                  <b>{a.sous_traitants?.nom ?? 'Sous-traitant'}</b>
+                  {a.sous_traitants?.specialite && <span className="text-sm text-gray-500"> · {a.sous_traitants.specialite}</span>}
+                  {a.mission && <span className="block text-sm text-gray-600">{a.mission}</span>}
+                </span>
+                {gere && <button className="text-sm text-red-600" onClick={() => void retirerSt(a.id)}>Retirer</button>}
+              </div>
+              {gere ? (
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                  <label>Du<input type="date" className={`${champ} !py-1.5`} value={a.date_debut ?? ''} onChange={(e) => void majDatesSt(a, 'date_debut', e.target.value)} /></label>
+                  <label>Au<input type="date" className={`${champ} !py-1.5`} value={a.date_fin ?? ''} onChange={(e) => void majDatesSt(a, 'date_fin', e.target.value)} /></label>
+                </div>
+              ) : (
+                (a.date_debut || a.date_fin) && <p className="text-xs text-gray-500">{dateFr(a.date_debut)} → {dateFr(a.date_fin)}</p>
+              )}
+            </div>
+          ))}
+          {!externes.length && <p className="text-sm text-gray-500">Aucun sous-traitant sur ce chantier.</p>}
+          {gere && (
+            <div className="space-y-2 pt-1">
+              <select className={champ} value={stChoix} onChange={(e) => setStChoix(e.target.value)} aria-label="Sous-traitant à affecter">
+                <option value="">Choisir un sous-traitant…</option>
+                {stDispo.map((s) => <option key={s.id} value={s.id}>{s.nom}{s.specialite ? ` · ${s.specialite}` : ''}</option>)}
+              </select>
+              <input className={champ} value={stMission} onChange={(e) => setStMission(e.target.value)} placeholder="Mission (ex. Carrelage salle de bain)" aria-label="Mission" />
+              <button className={btn} onClick={() => void affecterSt()}>Affecter</button>
+              {!stDispo.length && <p className="text-xs text-gray-500">Ajoutez d'abord vos sous-traitants dans Plus &gt; Sous-traitants.</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={`${carte} space-y-3`}>
         <h2 className="font-bold">Photos ({photos.length})</h2>

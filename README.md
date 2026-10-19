@@ -266,3 +266,33 @@ Prochaine étape : phase 1 (écrans Clients, Chantiers, Équipe, photos).
 3. Prospects : ajoutez un prospect, passez-le à « Visite faite », puis « Créer le client ».
 4. Devis : le bouton WhatsApp ouvre un message prêt à envoyer au client.
 5. Journal : modifiez un prix dans la bibliothèque, puis vérifiez l'entrée.
+
+---
+
+## Phase 8 : planning enrichi
+
+**Pour mettre à jour**
+1. Supabase > SQL Editor : exécutez `supabase/phase8.sql`, **une seule fois**, avant de publier le nouveau code.
+2. Remplacez le code (poussez-le sur GitHub : Vercel redéploie tout seul). Gardez votre `.env.local`.
+
+**Nouveautés**
+- **Chantiers à pourvoir** : un chantier ouvert (à planifier ou en cours) avec des dates apparaît sur le planning même sans personne d'affecté, sur une ligne orange « À pourvoir ». Un encadré en haut liste ceux qui n'ont personne dans les 7 prochains jours, avec la première date concernée. L'alerte apparaît aussi dans Alertes.
+- **Sous-traitants sur chantier** : sur la fiche chantier, bloc « Sous-traitants affectés » (sous-traitant, mission, dates). Ils apparaissent sur le planning, dans une section à part avec un cadre en pointillés.
+- **Contrôleur** : champ « Contrôleur » dans le formulaire du chantier. Il peut être n'importe quel membre de l'équipe. Il voit le chantier, son équipe, ses sous-traitants, ses rapports, ses photos et ses métrés, **en lecture seule**.
+- **Devis au planning** :
+  - rendez-vous de devis (visite chez le client, métré, remise du devis) avec date, heure, client, responsable, adresse ; boutons Fait, Annuler, Rappel WhatsApp et Créer le devis ;
+  - date limite d'envoi sur le formulaire du devis : le devis apparaît sur le planning à cette date tant qu'il est en brouillon ;
+  - alertes : devis à envoyer, rendez-vous du jour ou du lendemain, rendez-vous passés à clôturer.
+
+**Règles à connaître**
+- Un chantier est « couvert » un jour donné si au moins une personne y est affectée ce jour-là (employé, chef de chantier ou sous-traitant). Le chef compte sur toute la durée du chantier, sauf s'il a sa propre affectation datée.
+- Les chantiers en pause, terminés ou sans dates ne sont pas signalés « à pourvoir ». Ceux sans dates restent dans « Non planifiés ».
+- Rendez-vous de devis : gérant et secrétaire créent et modifient. Le responsable désigné voit ses rendez-vous sur son planning.
+- Sous-traitants sur chantier : gérant et secrétaire gèrent ; le chef et le contrôleur du chantier consultent.
+
+**Test conseillé**
+1. Créez un chantier du lundi au vendredi de la semaine prochaine, sans chef ni équipe : il apparaît en orange sur la ligne « À pourvoir » et dans l'encadré.
+2. Affectez un sous-traitant du mardi au mercredi : ces deux jours disparaissent de « À pourvoir » et le sous-traitant apparaît dans sa section.
+3. Désignez un contrôleur, connectez-vous avec son compte : il voit le chantier, sans bouton de modification.
+4. Planning > « + Rendez-vous » : visite chez un client mardi à 14 h, puis testez le rappel WhatsApp.
+5. Créez un devis avec une date limite d'envoi : il apparaît sur la ligne « Devis ». Passez-le à « Envoyé » : il disparaît.
